@@ -1,25 +1,27 @@
-# Makefile for ptmalloc, version 2
-# by Wolfram Gloger 1996-1999, 2001, 2002, 2003, 2004, 2006
+# Makefile for ptmalloc, version 3
+# by Wolfram Gloger 1996-1999, 2001-2005, 2006
 
-DIST_FILES0 = ChangeLog malloc.h malloc.c arena.c hooks.c \
- malloc-stats.c \
+DIST_FILES0 = ChangeLog malloc-2.8.3.h malloc.c \
+ malloc-private.h ptmalloc3.c \
  sysdeps \
- tst-mallocstate.c tst-mstats.c
+ #tst-mallocstate.c tst-mstats.c
 DIST_FILES1 = COPYRIGHT README Makefile \
  $(DIST_FILES0) \
  lran2.h t-test.h t-test1.c t-test2.c \
+ tst-independent-alloc.c \
  #debian
 DIST_FILES2 = $(DIST_FILES1) \
- Makefile.glibc glibc-include RCS/*,v
-# malloc-int.h 
+ m-test1.c \
+ RCS/*,v
+
 TAR_FLAGS = --numeric-owner --exclude "*~" --exclude "debian/tmp*"
 
 #CC = /pkg/gcc-2.95.2-wg/bin/gcc
-CC = cc
+CC = gcc
 
 SYS_FLAGS  =
-OPT_FLAGS  = -g -O # -O2
-WARN_FLAGS = #-Wall -Wstrict-prototypes
+OPT_FLAGS  = -g -O2 #-O # -O2
+WARN_FLAGS = -Wall -Wstrict-prototypes
 SH_FLAGS   = -shared -fpic
 
 INC_FLAGS  = -Isysdeps/generic
@@ -28,7 +30,7 @@ INC_FLAGS  = -Isysdeps/generic
 T_FLAGS   = -DUSE_MALLOC=1 -DTEST=1
 
 # Flags for the compilation of malloc.c
-M_FLAGS   = -DTHREAD_STATS=1 #-DMALLOC_DEBUG=1
+M_FLAGS   = -DTHREAD_STATS=1 #-DMALLOC_DEBUG=1 -DDEBUG=1
 
 # Thread flags.
 # See the platform-specific targets below.
@@ -39,12 +41,13 @@ RM        = rm -f
 AR        = ar
 RANLIB    = ranlib
 
-MALLOC_OBJ = malloc.o malloc-stats.o
-LIB_MALLOC = libmalloc.a
+MALLOC_OBJ = ptmalloc3.o malloc.o
+LIB_MALLOC = libptmalloc3.a
 
 T_SUF =
 TESTS = t-test1$(T_SUF) t-test2$(T_SUF) \
-        tst-mallocstate$(T_SUF) tst-mstats$(T_SUF)
+	tst-independent-alloc$(T_SUF)
+        #m-test1$(T_SUF) tst-mallocstate$(T_SUF) tst-mstats$(T_SUF)
 
 CFLAGS = $(SYS_FLAGS) $(OPT_FLAGS) $(WARN_FLAGS) $(THR_FLAGS) $(INC_FLAGS)
 
@@ -53,27 +56,32 @@ CFLAGS = $(SYS_FLAGS) $(OPT_FLAGS) $(WARN_FLAGS) $(THR_FLAGS) $(INC_FLAGS)
 
 all: $(LIB_MALLOC) $(TESTS)
 
-malloc.o: malloc.c malloc.h
-	$(CC) -c $(CFLAGS) $(M_FLAGS) $<
+ptmalloc3.o: ptmalloc3.c malloc-2.8.3.h
+	$(CC) -c $(CFLAGS) $(M_FLAGS) -DMSPACES=1 $<
 
-malloc-stats.o: malloc-stats.c malloc.h
-	$(CC) -c $(CFLAGS) $(M_FLAGS) $<
+malloc.o: malloc.c
+	$(CC) -c $(CFLAGS) $(M_FLAGS) -DONLY_MSPACES -DUSE_LOCKS=0 $<
 
-libmalloc.a: $(MALLOC_OBJ)
+#malloc-stats.o: malloc-stats.c malloc.h
+#	$(CC) -c $(CFLAGS) $(M_FLAGS) $<
+
+libptmalloc3.a: $(MALLOC_OBJ)
 	$(AR) cr $@ $(MALLOC_OBJ)
 	$(RANLIB) $@
 
-shared: malloc.so
-
-malloc.so: malloc.c malloc-stats.c malloc.h
-	$(CC) $(SH_FLAGS) $(CFLAGS) $(M_FLAGS) malloc.c malloc-stats.c -o $@
+libptmalloc3.so: $(MALLOC_OBJ)
+	$(CC) $(SH_FLAGS) $(CFLAGS) $(M_FLAGS) $(MALLOC_OBJ) -o $@
 
 again:
 	$(RM) $(TESTS)
 	$(MAKE) $(TESTS)
 
 clean:
-	$(RM) $(MALLOC_OBJ) libmalloc.a malloc.so $(TESTS) core core.[0-9]*
+	$(RM) $(MALLOC_OBJ) libptmalloc3.a libptmalloc3.so $(TESTS) \
+         core core.[0-9]*
+
+m-test1$(T_SUF): m-test1.c $(LIB_MALLOC)
+	$(CC) $(CFLAGS) $(T_FLAGS) m-test1.c $(LIB_MALLOC) $(THR_LIBS) -o $@
 
 t-test1$(T_SUF): t-test1.c t-test.h $(LIB_MALLOC)
 	$(CC) $(CFLAGS) $(T_FLAGS) t-test1.c $(LIB_MALLOC) $(THR_LIBS) -o $@
@@ -89,13 +97,17 @@ tst-mstats$(T_SUF): tst-mstats.c $(LIB_MALLOC)
 	$(CC) $(CFLAGS) $(T_FLAGS) tst-mstats.c $(LIB_MALLOC) \
 	 $(THR_LIBS) -o $@
 
+tst-independent-alloc$(T_SUF): tst-independent-alloc.c $(LIB_MALLOC)
+	$(CC) $(CFLAGS) $(T_FLAGS) tst-independent-alloc.c $(LIB_MALLOC) \
+	 $(THR_LIBS) -o $@
+
 ############################################################################
 # Platform-specific targets. The ones ending in `-libc' are provided
 # to enable comparison with the standard malloc implementation from
 # the system's native C library.  The option USE_TSD_DATA_HACK is now
 # the default for pthreads systems, as most (Irix 6, Solaris 2) seem
 # to need it.  Try with USE_TSD_DATA_HACK undefined only if you're
-# confident that your systems' thread specific data functions do _not_
+# confident that your systems's thread specific data functions do _not_
 # use malloc themselves.
 
 # posix threads with TSD data hack
@@ -131,23 +143,23 @@ linux-pthread:
  INC_FLAGS='-Isysdeps/pthread -Isysdeps/generic -I.' M_FLAGS='$(M_FLAGS)' \
  TESTS='$(TESTS)'
 
-linux-malloc.so:
-	$(MAKE) SYS_FLAGS='-D_GNU_SOURCE=1' \
+linux-shared:
+	$(MAKE) SYS_FLAGS='-D_GNU_SOURCE=1 -fpic' \
  WARN_FLAGS='-Wall -Wstrict-prototypes' \
  OPT_FLAGS='$(OPT_FLAGS)' THR_FLAGS='-DUSE_TSD_DATA_HACK' \
  INC_FLAGS='-Isysdeps/pthread -Isysdeps/generic -I.' M_FLAGS='$(M_FLAGS)' \
- malloc.so
+ LIB_MALLOC=libptmalloc3.so
 
 sproc:
 	$(MAKE) THR_FLAGS='' THR_LIBS='' OPT_FLAGS='$(OPT_FLAGS)' CC='$(CC)' \
 	INC_FLAGS='-Isysdeps/sproc -Isysdeps/generic -I.' \
-	M_FLAGS='$(M_FLAGS)'
+	M_FLAGS='$(M_FLAGS) -Dmalloc_getpagesize=4096'
 
 sproc-shared:
 	$(MAKE) THR_FLAGS='' THR_LIBS= \
 	 SH_FLAGS='-shared -check_registry /usr/lib/so_locations' \
 	 INC_FLAGS='-Isysdeps/sproc -Isysdeps/generic -I.' \
-	  LIB_MALLOC=malloc.so M_FLAGS='$(M_FLAGS)'
+	  LIB_MALLOC=libptmalloc3.so M_FLAGS='$(M_FLAGS)'
 
 sproc-libc:
 	$(MAKE) THR_FLAGS='' THR_LIBS= LIB_MALLOC= T_FLAGS= \
@@ -179,40 +191,21 @@ linux-nothreads:
 	 INC_FLAGS='-Isysdeps/generic -I.' \
  SYS_FLAGS='-D_GNU_SOURCE' THR_FLAGS='' THR_LIBS='' M_FLAGS='$(M_FLAGS)'
 
-# note: non-ANSI compilers are no longer considered important
-traditional:
-	$(MAKE) THR_FLAGS='' THR_LIBS='' CC='gcc -traditional'
-
-#glibc-test:
-#	$(MAKE) THR_FLAGS='-DUSE_PTHREADS=1 -D_LIBC' \
-# SYS_FLAGS='-D_GNU_SOURCE=1 ' \
-# WARN_FLAGS='-Wall -Wstrict-prototypes -Wbad-function-cast -Wmissing-noreturn -Wmissing-prototypes -Wmissing-declarations -Wcomment -Wcomments -Wtrigraphs -Wmultichar -Wstrict-prototypes -Winline' \
-# INC_FLAGS='-Iglibc-include -include glibc-include/libc-symbols.h' \
-# malloc.o && mv malloc.o malloc-glibc.o
-
 ############################################################################
 
 check: $(TESTS)
 	./t-test1
 	./t-test2
-	./tst-mallocstate || echo "Test mallocstate failed!"
-	./tst-mstats || echo "Test mstats failed!"
+	#./tst-mallocstate || echo "Test mallocstate failed!"
+	#./tst-mstats || echo "Test mstats failed!"
 
 snap:
-	cd ..; tar $(TAR_FLAGS) -c -f - $(DIST_FILES1:%=ptmalloc2/%) | \
-	 gzip -9 >ptmalloc2-current.tar.gz
+	cd ..; tar $(TAR_FLAGS) -c -f - $(DIST_FILES1:%=ptmalloc3/%) | \
+	 gzip -9 >ptmalloc3-current.tar.gz
 
 dist:
-	cd ..; tar $(TAR_FLAGS) -c -f - $(DIST_FILES2:%=ptmalloc2/%) | \
-	 gzip -9 >ptmalloc2.tar.gz
-
-Makefile.glibc.diff: Makefile.glibc
-	-diff -u /mount/public/export/glibc/cvs/libc/malloc/Makefile \
- Makefile.glibc >$@
-
-dist-glibc: Makefile.glibc.diff
-	tar cf - $(DIST_FILES0) Makefile.glibc.diff | \
-	 gzip -9 >../libc.malloc.tar.gz
+	cd ..; tar $(TAR_FLAGS) -c -f - $(DIST_FILES2:%=ptmalloc3/%) | \
+	 gzip -9 >ptmalloc3.tar.gz
 
 # dependencies
-malloc.o: arena.c hooks.c
+ptmalloc3.o: malloc-private.h

@@ -1,44 +1,48 @@
-ptmalloc2 - a multi-thread malloc implementation
+ptmalloc3 - a multi-thread malloc implementation
 ================================================
 
 Wolfram Gloger (wg@malloc.de)
 
-Nov 2004
+Jan 2006
+
+
+Thanks
+======
+
+This release was partly funded by Pixar Animation Studios.  I would
+like to thank David Baraff of Pixar for his support and Doug Lea
+(dl@cs.oswego.edu) for the great original malloc implementation.
 
 
 Introduction
 ============
 
-This package is a modified version of Doug Lea's malloc-2.7.1pre
+This package is a modified version of Doug Lea's malloc-2.8.3
 implementation (available seperately from ftp://g.oswego.edu/pub/misc)
 that I adapted for multiple threads, while trying to avoid lock
-contention as much as possible.  Many thanks should go to Doug Lea
-(dl@cs.oswego.edu) for the great original malloc implementation.
+contention as much as possible.
 
-As part of the GNU C library, the source files are available under the
-GNU Library General Public License (see the comments in the files).
-But as part of this stand-alone package, the code is also available
-under the (probably less restrictive) conditions described in the file
-'COPYRIGHT'.  In any case, there is no warranty whatsoever for this
-package.
+As part of the GNU C library, the source files may be available under
+the GNU Library General Public License (see the comments in the
+files).  But as part of this stand-alone package, the code is also
+available under the (probably less restrictive) conditions described
+in the file 'COPYRIGHT'.  In any case, there is no warranty whatsoever
+for this package.
 
 The current distribution should be available from:
 
-http://www.malloc.de/malloc/ptmalloc2.tar.gz
+http://www.malloc.de/malloc/ptmalloc3.tar.gz
 
 
 Compilation
 ===========
 
-It should be possible to build ptmalloc2 on any UN*X-like system that
-implements the sbrk(), mmap(), munmap() and mprotect() calls.  If
-mmap() is not available, it is only possible to produce a
-non-threadsafe implementation.  Since there are now several source
-files, a library (libmalloc.a) is generated.  See the Makefile for
-examples of the compile-time options.
+It should be possible to build ptmalloc3 on any UN*X-like system that
+implements the sbrk(), mmap(), munmap() and mprotect() calls.  Since
+there are now several source files, a library (libptmalloc3.a) is
+generated.  See the Makefile for examples of the compile-time options.
 
-Note that support for non-ANSI compilers is no longer a significant
-goal.
+Note that support for non-ANSI compilers is no longer there.
 
 Several example targets are provided in the Makefile:
 
@@ -54,11 +58,12 @@ Several example targets are provided in the Makefile:
 
  o SGI sproc() threads, compile with "make sproc"
 
- o no threads, compile with "make nothreads"
+ o no threads, compile with "make nothreads" (currently out of order?)
 
 For Linux:
 
- o make "linux-pthread" (almost the same as "make posix")
+ o make "linux-pthread" (almost the same as "make posix") or
+   make "linux-shared"
 
 Note that some compilers need special flags for multi-threaded code,
 e.g. with Solaris cc with Posix threads, one should use:
@@ -83,7 +88,7 @@ not generally guaranteed).  USE_TSD_DATA_HACK is now the default
 because I haven't yet found a non-glibc pthreads system where this
 hack is _not_ needed.
 
-*NEW* and _important_: In (currently) one place in the ptmalloc2
+*NEW* and _important_: In (currently) one place in the ptmalloc3
 source, a write memory barrier is needed, named
 atomic_write_barrier().  This macro needs to be defined at the end of
 malloc-machine.h.  For gcc, a fallback in the form of a full memory
@@ -93,26 +98,27 @@ if you don't use gcc.
 Usage
 =====
 
-Just link libmalloc.a into your application.
+Just link libptmalloc3 into your application.
 
 Some wicked systems (e.g. HPUX apparently) won't let malloc call _any_
 thread-related functions before main().  On these systems,
 USE_STARTER=2 must be defined during compilation (see "make
 posix-explicit" above) and the global initialization function
-ptmalloc_init() must be called explitly, preferably at the start of
+ptmalloc_init() must be called explicitly, preferably at the start of
 main().
 
-Otherwise, when using ptmalloc2, no special precautions are necessary.
+Otherwise, when using ptmalloc3, no special precautions are necessary.
 
 Link order is important
 =======================
 
 On some systems, when overriding malloc and linking against shared
 libraries, the link order becomes very important.  E.g., when linking
-C++ programs on Solaris, don't rely on libC being included by default,
-but instead put `-lthread' behind `-lC' on the command line:
+C++ programs on Solaris with Solaris threads [this is probably now
+obsolete], don't rely on libC being included by default, but instead
+put `-lthread' behind `-lC' on the command line:
 
-  CC ... libmalloc.a -lC -lthread
+  CC ... libptmalloc3.a -lC -lthread
 
 This is because there are global constructors in libC that need
 malloc/ptmalloc, which in turn needs to have the thread library to be
@@ -132,30 +138,18 @@ guarantee this is to set up the hooks before any malloc call, e.g.
 with a function pointed to by the global variable
 __malloc_initialize_hook).
 
-A useful application of the hooks is built-in into ptmalloc2: The
-implementation is usually very unforgiving with respect to misuse,
-such as free()ing a pointer twice or free()ing a pointer not obtained
-with malloc() (these will typically crash the application
-immediately).  To debug in such situations, you can set the
-environment variable `MALLOC_CHECK_' (note the trailing underscore).
-Performance will suffer somewhat, but you will get more controlled
-behaviour in the case of misuse.  If MALLOC_CHECK_=0, wrong free()s
-will be silently ignored, if MALLOC_CHECK_=1, diagnostics will be
-printed on stderr, and if MALLOC_CHECK_=2, abort() will be called on
-any error.
-
 You can now also tune other malloc parameters (normally adjused via
 mallopt() calls from the application) with environment variables:
 
     MALLOC_TRIM_THRESHOLD_    for deciding to shrink the heap (in bytes)
 
-    MALLOC_TOP_PAD_           how much extra memory to allocate on
-                              each system call (in bytes)
+    MALLOC_GRANULARITY_       The unit for allocating and deallocating
+    MALLOC_TOP_PAD_           memory from the system.  The default
+                              is 64k and this parameter _must_ be a
+                              power of 2.
 
     MALLOC_MMAP_THRESHOLD_    min. size for chunks allocated via
                               mmap() (in bytes)
-
-    MALLOC_MMAP_MAX_          max. number of mmapped regions to use
 
 Tests
 =====

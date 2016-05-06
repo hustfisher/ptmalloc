@@ -1,6 +1,6 @@
 /*
- * $Id: t-test1.c,v 1.2 2004/11/04 14:58:45 wg Exp $
- * by Wolfram Gloger 1996-1999, 2001, 2004
+ * $Id: t-test1.c,v 1.2 2006/03/27 16:05:13 wg Exp $
+ * by Wolfram Gloger 1996-1999, 2001, 2004, 2006
  * A multi-thread test for malloc performance, maintaining one pool of
  * allocated bins per thread.
  */
@@ -19,7 +19,7 @@
 #if !USE_MALLOC
 #include <malloc.h>
 #else
-#include "malloc.h"
+#include "malloc-2.8.3.h"
 #endif
 
 #include "lran2.h"
