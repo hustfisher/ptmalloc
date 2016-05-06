@@ -1,15 +1,15 @@
-ptmalloc - a multi-thread malloc implementation
-===============================================
+ptmalloc2 - a multi-thread malloc implementation
+================================================
 
 Wolfram Gloger (wg@malloc.de)
 
-19 Dec 1999
+Nov 2004
 
 
 Introduction
 ============
 
-ptmalloc.c is a modified version of Doug Lea's malloc-2.6.4
+This package is a modified version of Doug Lea's malloc-2.7.1pre
 implementation (available seperately from ftp://g.oswego.edu/pub/misc)
 that I adapted for multiple threads, while trying to avoid lock
 contention as much as possible.  Many thanks should go to Doug Lea
@@ -17,44 +17,64 @@ contention as much as possible.  Many thanks should go to Doug Lea
 
 As part of the GNU C library, the source files are available under the
 GNU Library General Public License (see the comments in the files).
-But as part of this stand-alone package, the code is available under
-the (probably less restrictive) conditions described in the file
-`COPYRIGHT'.  In any case, there is no warranty whatsoever for this
+But as part of this stand-alone package, the code is also available
+under the (probably less restrictive) conditions described in the file
+'COPYRIGHT'.  In any case, there is no warranty whatsoever for this
 package.
 
-Compilation and usage
-=====================
+The current distribution should be available from:
 
-It should be possible to compile ptmalloc.c on any UN*X-like system
-that implements the sbrk(), mmap(), munmap() and mprotect() calls.  If
+http://www.malloc.de/malloc/ptmalloc2.tar.gz
+
+
+Compilation
+===========
+
+It should be possible to build ptmalloc2 on any UN*X-like system that
+implements the sbrk(), mmap(), munmap() and mprotect() calls.  If
 mmap() is not available, it is only possible to produce a
-non-threadsafe implementation from the source file.  See the comments
-in the source file for descriptions of the compile-time options.
-Several thread interfaces are supported:
+non-threadsafe implementation.  Since there are now several source
+files, a library (libmalloc.a) is generated.  See the Makefile for
+examples of the compile-time options.
 
- o Posix threads (pthreads), compile with `-DUSE_PTHREADS=1'
-   (and possibly with `-DUSE_TSD_DATA_HACK', see below)
- o Solaris threads, compile with `-DUSE_THR=1'
- o SGI sproc() threads, compile with `-DUSE_SPROC=1'
- o When compiling ptmalloc.c as part of the GNU C library,
-   i.e. when _LIBC is defined (no other defines necessary)
- o no threads, compile without any of the above definitions
+Note that support for non-ANSI compilers is no longer a significant
+goal.
 
-The distributed Makefile includes several targets (e.g. `solaris' for
-Solaris threads, but you probably want `posix' for recent Solaris
-versions) which cause ptmalloc.c to be compiled with the appropriate
-flags.  The default is to compile for Posix threads.  Some additional
-targets, ending in `-libc', are also provided, to compare performance
-of the test programs to the case when linking with the standard malloc
-implementation in libc.
+Several example targets are provided in the Makefile:
+
+ o Posix threads (pthreads), compile with "make posix"
+
+ o Posix threads with explicit initialization, compile with
+   "make posix-explicit" (known to be required on HPUX)
+
+ o Posix threads without "tsd data hack" (see below), compile with
+   "make posix-with-tsd"
+
+ o Solaris threads, compile with "make solaris"
+
+ o SGI sproc() threads, compile with "make sproc"
+
+ o no threads, compile with "make nothreads"
+
+For Linux:
+
+ o make "linux-pthread" (almost the same as "make posix")
+
+Note that some compilers need special flags for multi-threaded code,
+e.g. with Solaris cc with Posix threads, one should use:
+
+% make posix SYS_FLAGS='-mt'
+
+Some additional targets, ending in `-libc', are also provided in the
+Makefile, to compare performance of the test programs to the case when
+linking with the standard malloc implementation in libc.
 
 A potential problem remains: If any of the system-specific functions
 for getting/setting thread-specific data or for locking a mutex call
 one of the malloc-related functions internally, the implementation
 cannot work at all due to infinite recursion.  One example seems to be
-Solaris 2.4; a workaround for thr_getspecific() has been inserted into
-the thread-m.h file.  I would like to hear if this problem occurs on
-other systems, and whether similar workarounds could be applied.
+Solaris 2.4.  I would like to hear if this problem occurs on other
+systems, and whether similar workarounds could be applied.
 
 For Posix threads, too, an optional hack like that has been integrated
 (activated when defining USE_TSD_DATA_HACK) which depends on
@@ -63,24 +83,36 @@ not generally guaranteed).  USE_TSD_DATA_HACK is now the default
 because I haven't yet found a non-glibc pthreads system where this
 hack is _not_ needed.
 
-To use ptmalloc (i.e. when linking ptmalloc.o into applications), no
-special precautions are necessary except calling an initialization
-routine, ptmalloc_init(), once before the first call to malloc() (or
-calloc(), etc.).  This call happens automatically when:
+*NEW* and _important_: In (currently) one place in the ptmalloc2
+source, a write memory barrier is needed, named
+atomic_write_barrier().  This macro needs to be defined at the end of
+malloc-machine.h.  For gcc, a fallback in the form of a full memory
+barrier is already defined, but you may need to add another definition
+if you don't use gcc.
 
- o compiling ptmalloc with MALLOC_HOOKS defined (this is the default
-   when using the supplied Makefile)
- o using the GNU C library
+Usage
+=====
 
-So in any of these cases, you can omit the explicit ptmalloc_init()
-call from applications using ptmalloc.o.
+Just link libmalloc.a into your application.
+
+Some wicked systems (e.g. HPUX apparently) won't let malloc call _any_
+thread-related functions before main().  On these systems,
+USE_STARTER=2 must be defined during compilation (see "make
+posix-explicit" above) and the global initialization function
+ptmalloc_init() must be called explitly, preferably at the start of
+main().
+
+Otherwise, when using ptmalloc2, no special precautions are necessary.
+
+Link order is important
+=======================
 
 On some systems, when overriding malloc and linking against shared
 libraries, the link order becomes very important.  E.g., when linking
 C++ programs on Solaris, don't rely on libC being included by default,
 but instead put `-lthread' behind `-lC' on the command line:
 
-  CC ... ptmalloc.o -lC -lthread
+  CC ... libmalloc.a -lC -lthread
 
 This is because there are global constructors in libC that need
 malloc/ptmalloc, which in turn needs to have the thread library to be
@@ -89,19 +121,18 @@ already initialized.
 Debugging hooks
 ===============
 
-When the ptmalloc.c source is compiled with MALLOC_HOOKS defined (this
-is recommended), all calls to malloc(), realloc(), free() and
-memalign() are routed through the global function pointers
-__malloc_hook, __realloc_hook, __free_hook and __memalign_hook if they
-are not NULL (see the ptmalloc.h header file for declarations of these
-pointers).  Therefore the malloc implementation can be changed at
-runtime, if care is taken not to call free() or realloc() on pointers
-obtained with a different implementation than the one currently in
-effect.  (The easiest way to guarantee this is to set up the hooks
-before any malloc call, e.g.  with a function pointed to by the global
-variable __malloc_initialize_hook).
+All calls to malloc(), realloc(), free() and memalign() are routed
+through the global function pointers __malloc_hook, __realloc_hook,
+__free_hook and __memalign_hook if they are not NULL (see the malloc.h
+header file for declarations of these pointers).  Therefore the malloc
+implementation can be changed at runtime, if care is taken not to call
+free() or realloc() on pointers obtained with a different
+implementation than the one currently in effect.  (The easiest way to
+guarantee this is to set up the hooks before any malloc call, e.g.
+with a function pointed to by the global variable
+__malloc_initialize_hook).
 
-A useful application of the hooks is built-in into ptmalloc: The
+A useful application of the hooks is built-in into ptmalloc2: The
 implementation is usually very unforgiving with respect to misuse,
 such as free()ing a pointer twice or free()ing a pointer not obtained
 with malloc() (these will typically crash the application
@@ -152,41 +183,10 @@ cross each others arena.
 Performance results from t-test1 should be quite repeatable, while the
 behaviour of t-test2 depends on scheduling variations.
 
-Some performance data from t-test1
-==================================
+Conclusion
+==========
 
-The times given are complete program execution times, obtained with
-`time t-test1 ...'.
+I'm always interested in performance data and feedback, just send mail
+to ptmalloc@malloc.de.
 
-1. SGI Octane, one R12000 300MHz CPU, Irix 6.5, `sproc' threads:
-
-20 threads (4 in parallel), 3000000 malloc calls per thread, max. size
-5000 bytes, 5000 bins:
-
-ptmalloc:                       malloc from libc:
-real    3m0.521s                real    30m27.240s
-user    2m45.336s               user    10m7.592s
-sys     0m3.014s                sys     17m6.502s
-
-2. Same as 1., but with POSIX threads:
-
-20 threads (4 in parallel), 3000000 malloc calls per thread, max. size
-5000 bytes, 5000 bins:
-
-ptmalloc:                       malloc from libc:
-real    3m10.667s               real    5m51.588s
-user    2m57.052s               user    5m27.986s
-sys     0m2.399s                sys     0m3.098s
-
-(Comparing the two ptmalloc results probably shows the slight
-performance penalty from having to compile with USE_TSD_DATA_HACK when
-using pthreads on Irix.)
-
-Special section on use of ptmalloc with Linux
-=============================================
-
-On Linux, ptmalloc should work with the libpthreads library that is
-included with Linux libc-5.x (but this is untested).  Thanks to the
-efforts of H.J. Lu and Ulrich Drepper, it is now an integral part of
-the GNU C library 2.x releases (libc-6.x), so you don't need to
-compile and link ptmalloc.o with glibc.
+Good luck!

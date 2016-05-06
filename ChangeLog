@@ -1,227 +1,186 @@
-1999-12-05  Wolfram Gloger  <wg@malloc.de>
+2006-05-31  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/malloc.c (arena_get2): If generating a new arena fails,
-	try to generate a minimal one and hope for mmap_chunk() to succeed
-	later.
+	* sysdeps/pthread/malloc-machine.h (mutex_unlock): Unlock needs
+	full memory barrier (thanks Bart Robinson).
 
-1999-11-07  Wolfram Gloger  <wg@malloc.de>
+2004-11-05  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/thread-m.h [NO_THREADS]: The mutex_* macros now let
-	mutex_t work as an `in-use' flag even without threads.
-	* malloc/malloc.c (USE_ARENAS): New feature flag, controls support
-	for multiple arenas separately from NO_THREADS.
-	(mALLOc, chunk_realloc, mEMALIGn, cALLOc) [USE_ARENAS]: try to
-	fall back to an mmap()ed arena when sbrk() has failed.
+	* malloc/hooks.c (malloc_starter, memalign_starter): Call
+	ptmalloc_init_minimal().
 
-1999-11-01  Wolfram Gloger  <wg@malloc.de>
+2004-11-04  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/malloc.h: Describe __malloc_initialize_hook.
-	* manual/memory.texi: Document __malloc_initialize_hook.
+	* malloc/malloc.c (USE_STARTER): New macro.
+	* malloc/hooks.c: Use USE_STARTER.
+	* malloc/arena.c: Use USE_STARTER.
 
-1999-09-23  Mark Kettenis  <kettenis@gnu.org>
+2004-08-13  Ulrich Drepper  <drepper@redhat.com>
 
-	* malloc/malloc.c (cALLOc): Correctly handle systems where sbrk
-	doesn't clear the contents of memory that is reallocated after
-	decrementing the break value first.  Update comment about
-	MORECORE_CLEARS, explaining the meaning of the values it can be
-	set to.
+	* malloc/malloc.c: Use strong_alias instead of weak_alias wherever
+	possible.
 
-1999-08-28  Ulrich Drepper  <drepper@cygnus.com>
+2002-12-06  Roland McGrath  <roland@redhat.com>
 
-	* malloc/malloc.c (ptmalloc_init): Don't use variables to set
-	thresholds for SUID binaries.  [PR libc/1277]
+	* malloc/arena.c (ptmalloc_init_minimal): New function, broken out
+	of ptmalloc_init.
 
-1999-08-06  H.J. Lu  <hjl@gnu.org>
+2002-08-23  Roland McGrath  <roland@redhat.com>
 
-	* malloc/malloc.c: Initialize __libc_pagesize early.
+	* malloc/hooks.c (__malloc_initialize_hook, __free_hook,
+	__malloc_hook, __realloc_hook, __memalign_hook,
+	__after_morecore_hook): Variable definitions moved to ...
+	* malloc/malloc.c: ... here, so as to be before all references.
 
-1999-07-07  Ulrich Drepper  <drepper@cygnus.com>
+2004-10-19  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/malloc.c (request2size): Also set errno if failing.
+	* malloc/hooks.c (mem2chunk_check, top_check): Handle
+	non-contiguous arena.  Reported by Michael Dalton
+	<mwdalton@stanford.edu> [BZ #457].  Add further checks for top
+	chunk.
 
-	* malloc/malloc.c (request2size): Take care of overflow in
-	addition.
+2004-08-08  Wolfram Gloger  <wg@malloc.de>
 
-1999-07-04  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+	* include/malloc.h (mstate): Move type declaration from here...
+	* malloc/malloc.h: ...to here.
+	(struct malloc_arena_info, struct malloc_global_info): New types.
+	(_int_get_arena, _int_get_arena_info, _int_get_global_info): New
+	functions.
+	* malloc/malloc.c (mSTATS, public_mSTATs, mALLINFo): Remove.
+	(_int_get_arena_info, _int_get_global_info): New functions.
+	* malloc/arena.c (_int_get_arena): New function.
+	* malloc/malloc-stats.c: New file.
+	* malloc/tst-mstats.c: New file.
+	* malloc/Makefile (tests): Add tst-mstats.
+	(distribute): Remove no-longer existing thread-m.h.
+	(dist-routines): Add malloc-stats.
+	* malloc/Versions: Add _int_get_arena, _int_get_arena_info,
+	_int_get_global_info.
+	
+2004-07-25  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/malloc.c (request2size): Check for overflow and return
-	NULL whenever it is encountered.
+	* sysdeps/generic/thread-st.h: New file.
+	* sysdeps/pthread/thread-st.h: New file.
+	* sysdeps/sproc/thread-st.h: New file.
+	* sysdeps/solaris/thread-st.h: New file.
+	* thread-st.h: Removed.
 
-1999-06-06  Ulrich Drepper  <drepper@cygnus.com>
+2004-03-18  Ulrich Drepper  <drepper@redhat.com>
 
-	* malloc/malloc.c: Introduce local variable __libc_getpagesize to
-	avoid multiple calls to getpagesize() which might be a syscall.
+	* malloc/malloc.c (__posix_memalign): Correct alignment check.
+	Reported by Don Heller <dheller@cse.psu.edu>.
 
-1999-06-05  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+2003-12-17  Jakub Jelinek  <jakub@redhat.com>
 
-	* malloc/malloc.c (check_action): Change into bitmap so that both
-	diagnostic and abort can be requested by setting it to 3.
-	(mALLOC_SET_STATe): Disable malloc checking if necessary.
+	* malloc/malloc.c (__posix_memalign): If __memalign_hook != NULL,
+	call it directly instead of memalign_internal.
 
-1999-05-16  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+2003-09-27  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/malloc.c: Cleanup to bring in line with released
-	stand-alone version `ptmalloc'.  Update some comments.
-	(internal_function): Move fallback definition so that the source
-	compiles outside of libc, and use it in more places.
-	(malloc_atfork): Fix when malloc_check is in use.
+	* malloc/malloc.c: Include <malloc-machine.h> earlier instead of
+	"thread-m.h", so that default parameters can be overridden in a
+	system-specific malloc-machine.h.  Remove extra ; from extern "C"
+	closing brace.
+	* sysdeps/generic/malloc-machine.h: New file.
+	* malloc/thread-m.h: Removed.
 
-1999-04-28  Ulrich Drepper  <drepper@cygnus.com>
+2003-09-08  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/malloc.c (rEALLOc): Only free memory for size 0 if oldmem
-	is != NULL.
+	* malloc/malloc.c (sYSMALLOc): Move foreign sbrk accounting into
+	contiguous case.  Bug report from Prem Gopalan
+	<prem@mazunetworks.com>.
 
-1999-04-28  Andreas Jaeger  <aj@arthur.rhein-neckar.de>
+2003-08-18  Art Haas  <ahaas@airmail.net>
 
-	* malloc/malloc.c (REALLOC_ZERO_BYTES_FREES): Define it to follow
-	ISO C9x and Unix98.
+	* malloc/malloc.h: Remove unneeded ';' where closing the C++
+	extern block.
 
-1999-02-23  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+2003-06-18  Ulrich Drepper  <drepper@redhat.com>
 
-	* malloc/malloc.c (mALLOC_SET_STATe): Handle the case where a
-	non-checked heap is restored when malloc checking was requested by
-	the user.
-	(struct malloc_state): Add using_malloc_checking.
-	(MALLOC_STATE_VERSION): Increment minor.
-	(using_malloc_checking, disallow_malloc_check): New variables.
-	(__malloc_check_init): Use them.
-	(mALLOC_GET_STATe): Use mALLOc to allocate the malloc_state, so
-	that it can the chunk is properly instrumented when malloc
-	checking is enabled.  Set the new using_malloc_checking field.
+	* malloc/malloc.c (public_mALLINFo): Initialize malloc if it
+	hasn't happened yet.
 
-1998-08-28 09:22  Ulrich Drepper  <drepper@cygnus.com>
+2003-05-28  Roland McGrath  <roland@redhat.com>
 
-	* malloc/malloc.c (malloc_hook_ini): Don't overwrite realloc and
-	memalign hook.
-	(realloc_hook_ini): Don't overwrite memalign hook.
-	(memalign_hook_ini): Don't overwrite malloc and memalign hooks.
-	Reported by Philippe Troin <phil@fifi.org>.
+	* malloc/malloc.h [! __GNUC__] (__const): Define if undefined.
 
-1998-11-04  Ulrich Drepper  <drepper@cygnus.com>
+2003-05-04  H.J. Lu  <hongjiu.lu@intel.com>
 
-	* malloc/malloc.c: Make sure calloc really returned zeroed memory.
-	Patch by Wolfram Gloger <wmglo@dent.med.uni-muenchen.de>.
+	* malloc/arena.c (arena_get2): Add atomic_write_barrier.
+	* malloc/thread-m.h: Include <atomic.h>.
+	(atomic_full_barrier): Provide default.
+	(atomic_read_barrier): Likewise.
+	(atomic_write_barrier): Likewise.
 
-1998-08-11  Roland McGrath  <roland@baalperazim.frob.com>
+2003-05-01  Ulrich Drepper  <drepper@redhat.com>
 
-	* malloc/malloc.c (free_check, realloc_check): Don't cast to long for
-	%p arg to fprintf, since `void *' is the right type already.
+	* malloc/malloc.c (mSTATs): Call ptmalloc_init if necessary.
 
-1998-08-11  H.J. Lu  <hjl@gnu.org>
+2003-01-27  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/malloc.c (free_check): Print pointer value using %p.
-	(realloc_check): Likewise.
+	* malloc/hooks.c (mem2chunk_check): Check alignment of mem
+	pointer, not of the computed chunk.  Bug report from Carlos
+	O'Donell <carlos@baldric.uwo.ca>.
 
-1998-05-12  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+2002-12-27  Jakub Jelinek  <jakub@redhat.com>
 
-	* malloc/malloc.c: Fix for NO_THREADS case.
+	* malloc/arena.c (ptmalloc_init): Don't call next_env_entry if
+	_environ is NULL.
 
-1998-05-03  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+2002-12-17  Ulrich Drepper  <drepper@redhat.com>
 
-	* malloc/malloc.c [__linux__] (ptmalloc_unlock_all2): New
-	function, used as atfork handler for the child process to work
-	around a problem in LinuxThreads.
+	* malloc/malloc.c (mALLOPt): Make sure malloc is initialized.
 
-1998-03-31  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+2002-12-06  Roland McGrath  <roland@redhat.com>
 
-	* malloc/malloc.c (chunk2mem_check, top_check): New functions.
-	(malloc_check, free_check, realloc_check, memalign_check): Use
-	them to improve overrun checking.  Overruns of a single byte and
-	corruption of the top chunk are now detected much more reliably.
+	* malloc/hooks.c [_LIBC && (USE___THREAD || (USE_TLS && !SHARED))]
+	(malloc_starter, memalign_starter, free_starter): Don't define these.
 
-Tue Aug 12 17:17:00 1997  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+	* malloc/hooks.c (memalign_starter): New function.
+	* malloc/malloc.c: Declare it.
+	* malloc/arena.c (save_memalign_hook): New variable.
+	(ptmalloc_init): Set __memalign_hook to memalign_starter.
 
-	* malloc/thread-m.h (thread_atfork, thread_atfork_static): New
- 	macros to encapsulate pthread_atfork's functionality.
-	* malloc/malloc.c (ptmalloc_lock_all, ptmalloc_unlock_all): New
- 	functions, registered via thread_atfork in the initialization
-	routine or via thread_atfork_static in global scope.  This
-	ensures a consistent state of all locks across fork().
+2002-11-18  Wolfram Gloger  <wg@malloc.de>
 
-Sun Apr 13 17:18:38 1997  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+	* malloc/arena.c
+	(ptmalloc_lock_all, ptmalloc_unlock_all, ptmalloc_unlock_all2): Do
+	nothing if not initialized.  Bug report from Marcus Brinkmann
+	<Marcus.Brinkmann@ruhr-uni-bochum.de>.
 
-	* malloc/malloc.c (fREe): Small optimization.  Before returning,
- 	add fast check whether the heap containing top can go away.
+2002-10-07  Wolfram Gloger  <wg@malloc.de>
 
-Fri Apr 11 16:46:49 1997  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+	* malloc/malloc.c (sYSMALLOc): Only check for breakage due
+	to foreign sbrk()'s if arena is contiguous.  Bug report from
+	Bruno Haible <bruno@clisp.org>.
 
-	* malloc/malloc.c (mALLOc, rEALLOc, cALLOc, mEMALIGn): When
- 	failing to allocate a new chunk, also try the main_arena.  It may
- 	be that we are only running out of mmapped regions, and other
- 	arenas cannot be enlarged sufficiently.
-	(new_heap, malloc_extend_top): Handle top_pad more consistently,
- 	i.e. only in new_heap().
+2002-07-11  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
 
-Mon Feb 24 23:05:00 1997  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
+	* malloc/hooks.c: typo fix in NO_THREADS case, realloc_check
+	fix in HAVE_MREMAP case.
 
-	* malloc/malloc.c (malloc_get_state): New function.
-	Saves global malloc state to an opaque data structure which
-	is dynamically allocated in the heap.
-	* malloc/malloc.c (malloc_set_state): New function.
-	Restore previously obtained state.
-	* malloc/malloc.h: Add declaration of malloc_get_state()
-	and malloc_set_state().
+2002-06-11  Wolfram Gloger  <wg@malloc.de>
 
-Mon Feb 17 10:58:14 1997  Miles Bader  <miles@gnu.ai.mit.edu>
+	* malloc/malloc.c: Fix error path when new_heap() returns NULL.
+	Reported by Michael Meissner <meissner@redhat.com>.
 
-	* malloc/thread-m.h
-	[_LIBC && !PTHREAD_MUTEX_INITIALIZER && MUTEX_INITIALIZER]
-	(mutex_lock, mutex_unlock, mutex_trylock): Defined in terms of
-	__mutex_*.
-	(mutex_t): Type removed & replaced by new macro.
-	(tsd_key_t): Typedef to int instead of pthread_key_t.
-	(tsd_key_create, tsd_setspecific, tsd_getspecific): New macros.
-	(__pthread_initialize): New macro, work around assumption of pthreads.
-	(tsd_keys_alloced): New static variable.
-	<hurd/threadvar.h>: New include.
+2002-03-29  Wolfram Gloger  <wg@malloc.de>
 
-1997-02-02 23:15  Ulrich Drepper  <drepper@cygnus.com>
+	* malloc/malloc.c: Add short description and prototypes for
+	malloc_get_state, malloc_set_state and posix_memalign, for
+	consistency and to avoid warnings with -Wstrict-prototypes.
+	Reported by Andreas Jaeger <aj@suse.de>.
 
-	* malloc/malloc.c (__after_morecore_hook): New variable.
-	(malloc_extend_top): Call __after_morecore_hook if set.
-	(main_trim): Likewise.
-	* malloc/malloc.h: Add declaration of __after_morecore_hook.
-	Suggested by Marcus Daniels.
+2002-03-13  Wolfram Gloger  <wg@malloc.de>
 
-1997-02-02 23:00  Marcus G. Daniels  <marcus@tdb.com>
+	* malloc/malloc.c (sYSMALLOc): Don't change brk if mmap
+	failed.
 
-	* malloc/malloc.c (rEALLOc): Protect tsd_setspecific call by
-	#ifndef NO_THREADS.
-	(mallinfo): Likewise.
+2002-01-18  Wolfram Gloger  <wg@malloc.de>
 
-	* malloc/malloc.c (__morecore): Make external since it is used in
-	programs.
-
-1997-01-30 18:29  Richard Henderson  <richard@atheist.tamu.edu>
-
-	* malloc/malloc.c (MAGICBYTE): Use cast to size_t instead of unsigned
-	to prevent warnings on 64 bit systems.
-	Reported by Paul Wouters <paul@xtdnet.nl>.
-
-1997-01-27 13:28  Ulrich Drepper  <drepper@cygnus.com>
-
-	* malloc/malloc.h (__malloc_initialized) [_LIBC]: Define as
-	__libc_malloc_initialized so that this variable is not shared with
-	other users of GNU malloc.
-	Suggested by Martin von Loewis <martin@mira.isdn.cs.tu-berlin.de>.
-
-1997-01-14 14:20  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
-
-	* malloc/malloc.c (weak_variable): Define.
-	(__malloc_initialize_hook, __free_hook, __malloc_hook, __realloc_hook,
-	__memalign_hook): Make them weak definitions.
-
-Sun Jan 26 18:35:29 1997  Wolfram Gloger  <wmglo@dent.med.uni-muenchen.de>
-
-	* malloc/malloc.c: Change malloc_check_init() to
-	__malloc_check_init().  Check for NULL in calloc() when a hook is
-	in place.  Make more variables tunable via MALLOC_... environment
-	variables.
-	* malloc/malloc.h: Change malloc_check_init() to
-	__malloc_check_init().
-
-Thu Jan  9 08:47:54 1997  Andreas Jaeger  <aj@arthur.pfalz.de>
-
-	* new-malloc/malloc.c (__MALLOC_P): define call to pthread
-	initializer only if NO_THREADS is not defined.
-
+	* malloc/malloc.c: Rewrite, adapted from Doug Lea's malloc-2.7.0.c.
+	* malloc/malloc.h: Likewise.
+	* malloc/arena.c: New file.
+	* malloc/hooks.c: New file.
+	* malloc/tst-mallocstate.c: New file.
+	* malloc/Makefile: Add new testcase tst-mallocstate.
+	Add arena.c and hooks.c to distribute.  Fix commented CPPFLAGS.
